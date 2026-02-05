@@ -11,3 +11,16 @@ dependencies = [
     "scikit-learn>=1.8.0",
     "toml>=0.10.2",
 ]
+
+[project.scripts]
+skvaider-api-client = "skvaider_api_client.cli:main"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+package-dir = { "" = "src" }
+
+[tool.setuptools.packages.find]
+where = ["src"]
