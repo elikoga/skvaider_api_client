@@ -23,7 +23,7 @@ class APIClient:
         return response.json()
 
     async def get_completion(self, model_id: str, prompt: str, max_tokens: int = 100) -> dict:
-        # Try chat/completions format first
+        # Use max_tokens instead of max_completion_tokens for compatibility
         json_data = {
             "model": model_id,
             "messages": [{"role": "user", "content": prompt}],
