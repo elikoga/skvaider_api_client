@@ -7,6 +7,8 @@ import asyncio
 import argparse
 import numpy as np
 from sklearn.metrics.pairwise import cosine_similarity
+import json
+import time
 
 class Config(BaseModel):
     skvaider_token: str
@@ -108,6 +110,12 @@ class Dataset:
             batches.append(batch)
         return batches
 
+def save_benchmark_results(output_path: str, data: dict):
+    """Save benchmark results to a JSON file"""
+    with open(output_path, "w") as f:
+        json.dump(data, f, indent=2)
+    print(f"Saved benchmark results to {output_path}")
+
 
 async def embeddings_command(config: Config, dataset_path: str, output_path: str):
 
@@ -136,13 +144,11 @@ async def embeddings_command(config: Config, dataset_path: str, output_path: str
         print(f"Completed model: {model_id}, obtained {len(final_embeddings[model_id])} embeddings.")
 
     # Save final embeddings to output file
-    import json
     with open(output_path, "w") as f:
         json.dump(final_embeddings, f, separators=(',', ':'))
     print(f"Saved embeddings to {output_path}")
 
 async def compare_command(config: Config, embeddings_path1: str, embeddings_path2: str, output_path: str):
-    import json
     from scipy.spatial.distance import cosine
 
     # Load embeddings files
@@ -186,8 +192,6 @@ async def compare_command(config: Config, embeddings_path1: str, embeddings_path
 
 async def benchmark_batch_command(config: Config, model_id: str, dataset_path: str, max_tokens: int, batch_sizes: list[int], output_path: str):
     """Benchmark using /completions endpoint with prompt list batching"""
-    import json
-    import time
 
     # Load dataset
     dataset = Dataset(dataset_path)
@@ -273,10 +277,7 @@ async def benchmark_batch_command(config: Config, model_id: str, dataset_path: s
         "results": results
     }
     
-    with open(output_path, "w") as f:
-        json.dump(output_data, f, indent=2)
-    
-    print(f"Saved benchmark results to {output_path}")
+    save_benchmark_results(output_path, output_data)
     
     # Print summary
     print("\n=== SUMMARY (BATCH API) ===")
@@ -287,8 +288,6 @@ async def benchmark_batch_command(config: Config, model_id: str, dataset_path: s
         print(f"{result['batch_size']:10} | {result['average_tokens_per_second']:>16.2f}")
 
 async def benchmark_command(config: Config, model_id: str, dataset_path: str, max_tokens: int, batch_sizes: list[int], output_path: str):
-    import json
-    import time
 
     # Load dataset
     dataset = Dataset(dataset_path)
@@ -369,10 +368,7 @@ async def benchmark_command(config: Config, model_id: str, dataset_path: str, ma
         "results": results
     }
     
-    with open(output_path, "w") as f:
-        json.dump(output_data, f, indent=2)
-    
-    print(f"Saved benchmark results to {output_path}")
+    save_benchmark_results(output_path, output_data)
     
     # Print summary
     print("\n=== SUMMARY ===")
@@ -383,8 +379,6 @@ async def benchmark_command(config: Config, model_id: str, dataset_path: str, ma
         print(f"{result['batch_size']:10} | {result['average_tokens_per_second']:>16.2f}")
 
 async def benchmark_mixed_command(config: Config, model_id: str, dataset_path: str, max_tokens: int, completions_per_request: int, requests_at_once: int, output_path: str):
-    import json
-    import time
 
     # Load dataset
     dataset = Dataset(dataset_path)
@@ -452,10 +446,7 @@ async def benchmark_mixed_command(config: Config, model_id: str, dataset_path: s
         "batch_results": batch_results
     }
     # Save results to JSON
-    with open(output_path, "w") as f:
-        json.dump(result, f, indent=2)
-
-    print(f"Saved benchmark results to {output_path}")
+    save_benchmark_results(output_path, result)
 
     # Print summary
     print("\n=== SUMMARY (MIXED PARALLEL + BATCH) ===")
