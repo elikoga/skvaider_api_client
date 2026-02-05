@@ -155,6 +155,21 @@ def create_benchmark_result(batch_size: int, total_prompts: int, total_tokens: i
         "batch_results": batch_results
     }
 
+class BenchmarkTracker:
+    """Track tokens, time, and batch results during benchmarking"""
+    def __init__(self):
+        self.total_tokens = 0
+        self.total_time = 0.0
+        self.batch_results = []
+    
+    def add_batch_result(self, batch_idx: int, batch_size: int, tokens: int, elapsed_time: float, **extra):
+        """Add a batch result and update totals"""
+        self.total_tokens += tokens
+        self.total_time += elapsed_time
+        result = create_batch_result(batch_idx, batch_size, tokens, elapsed_time, **extra)
+        self.batch_results.append(result)
+        return result
+
 
 async def embeddings_command(config: Config, dataset_path: str, output_path: str):
 
@@ -256,9 +271,7 @@ async def benchmark_batch_command(config: Config, model_id: str, dataset_path: s
         # Create batches of prompts
         batches = Dataset.create_batches(prompts, batch_size)
         
-        total_tokens = 0
-        total_time = 0.0
-        batch_results = []
+        tracker = BenchmarkTracker()
 
         for batch_idx, batch in enumerate(batches):
             start_time = time.time()
@@ -275,18 +288,14 @@ async def benchmark_batch_command(config: Config, model_id: str, dataset_path: s
             tokens_per_choice = response["usage"]["completion_tokens"]
             batch_tokens = tokens_per_choice * num_choices
             
-            total_tokens += batch_tokens
-            total_time += batch_time
-            
-            batch_result = create_batch_result(batch_idx, len(batch), batch_tokens, batch_time)
-            batch_results.append(batch_result)
+            batch_result = tracker.add_batch_result(batch_idx, len(batch), batch_tokens, batch_time)
             
             print(f"  Batch {batch_idx + 1}/{len(batches)}: {batch_tokens} tokens in {batch_time:.2f}s = {batch_result['tokens_per_second']:.2f} tok/s")
         
-        result = create_benchmark_result(batch_size, len(prompts), total_tokens, total_time, batch_results)
+        result = create_benchmark_result(batch_size, len(prompts), tracker.total_tokens, tracker.total_time, tracker.batch_results)
         results.append(result)
         
-        print(f"  Overall: {total_tokens} tokens in {total_time:.2f}s = {result['average_tokens_per_second']:.2f} tok/s\\n")
+        print(f"  Overall: {tracker.total_tokens} tokens in {tracker.total_time:.2f}s = {result['average_tokens_per_second']:.2f} tok/s\\n")
 
     # Save results to JSON
     output_data = {
@@ -333,9 +342,7 @@ async def benchmark_command(config: Config, model_id: str, dataset_path: str, ma
         # Create batches of prompts
         batches = Dataset.create_batches(prompts, batch_size)
         
-        total_tokens = 0
-        total_time = 0.0
-        batch_results = []
+        tracker = BenchmarkTracker()
 
         for batch_idx, batch in enumerate(batches):
             start_time = time.time()
@@ -350,18 +357,15 @@ async def benchmark_command(config: Config, model_id: str, dataset_path: str, ma
 
             # Count tokens generated
             batch_tokens = sum(resp["usage"]["completion_tokens"] for resp in responses)
-            total_tokens += batch_tokens
-            total_time += batch_time
             
-            batch_result = create_batch_result(batch_idx, len(batch), batch_tokens, batch_time)
-            batch_results.append(batch_result)
+            batch_result = tracker.add_batch_result(batch_idx, len(batch), batch_tokens, batch_time)
             
             print(f"  Batch {batch_idx + 1}/{len(batches)}: {batch_tokens} tokens in {batch_time:.2f}s = {batch_result['tokens_per_second']:.2f} tok/s")
         
-        result = create_benchmark_result(batch_size, len(prompts), total_tokens, total_time, batch_results)
+        result = create_benchmark_result(batch_size, len(prompts), tracker.total_tokens, tracker.total_time, tracker.batch_results)
         results.append(result)
         
-        print(f"  Overall: {total_tokens} tokens in {total_time:.2f}s = {result['average_tokens_per_second']:.2f} tok/s\n")
+        print(f"  Overall: {tracker.total_tokens} tokens in {tracker.total_time:.2f}s = {result['average_tokens_per_second']:.2f} tok/s\n")
 
     # Save results to JSON
     output_data = {
@@ -396,9 +400,7 @@ async def benchmark_mixed_command(config: Config, model_id: str, dataset_path: s
     print(f"Requests at once: {requests_at_once}\n")
 
     total_prompts = completions_per_request * requests_at_once
-    total_tokens = 0
-    total_time = 0.0
-    batch_results = []
+    tracker = BenchmarkTracker()
 
     # Get prompts using dataset.get_n_samples (replicates if needed)
     prompts = dataset.get_n_samples(total_prompts)
@@ -421,17 +423,14 @@ async def benchmark_mixed_command(config: Config, model_id: str, dataset_path: s
 
         # Count tokens generated
         batch_tokens = sum(resp["usage"]["completion_tokens"] * len(resp["choices"]) for resp in responses)
-        total_tokens += batch_tokens
-        total_time += batch_time
         
-        batch_result = create_batch_result(
+        batch_result = tracker.add_batch_result(
             batch_idx // requests_at_once, 
             len(current_batches), 
             batch_tokens, 
             batch_time,
             requests=len(current_batches)
         )
-        batch_results.append(batch_result)
 
         print(f"  Requests {batch_idx // requests_at_once + 1}/{(len(batches) + requests_at_once - 1) // requests_at_once}: {batch_tokens} tokens in {batch_time:.2f}s = {batch_result['tokens_per_second']:.2f} tok/s")
 
@@ -441,10 +440,10 @@ async def benchmark_mixed_command(config: Config, model_id: str, dataset_path: s
         "method": "mixed_parallel_batch",
         "timestamp": time.time(),
         "total_prompts": total_prompts,
-        "total_tokens": total_tokens,
-        "total_time": total_time,
-        "average_tokens_per_second": calculate_tokens_per_second(total_tokens, total_time),
-        "batch_results": batch_results
+        "total_tokens": tracker.total_tokens,
+        "total_time": tracker.total_time,
+        "average_tokens_per_second": calculate_tokens_per_second(tracker.total_tokens, tracker.total_time),
+        "batch_results": tracker.batch_results
     }
     # Save results to JSON
     save_benchmark_results(output_path, result)
