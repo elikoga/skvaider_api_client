@@ -22,16 +22,21 @@ class BatchApiBenchmark(BaseBenchmark):
     async def run(self):
         batch_sizes = [int(x.strip()) for x in self.args.batch_sizes.split(",")]
         dataset_len = len(self.dataset.data)
+        # Test 4 full batches per batch size
+        num_batches_to_test = 4
 
         print(f"Benchmarking model (BATCH API): {self.args.model}")
         print(f"Base dataset size: {dataset_len} prompts")
+        print(f"Testing {num_batches_to_test} batches per batch size")
         print(f"Max tokens per completion: {self.args.max_tokens}")
         print(f"Testing batch sizes: {batch_sizes}\n")
 
         results = []
         for batch_size in batch_sizes:
+            # Calculate prompts needed for this batch size
+            num_prompts = batch_size * num_batches_to_test
             print(f"Testing batch size: {batch_size}")
-            prompts, batches = get_prompts_and_batches(self.dataset, dataset_len, batch_size)
+            prompts, batches = get_prompts_and_batches(self.dataset, num_prompts, batch_size)
             tracker = BenchmarkTracker()
 
             for batch_idx, batch in enumerate(batches):
