@@ -1,189 +1,21 @@
 {
   "model": "gpt-oss:120b",
   "max_tokens": 100,
-  "timestamp": 1770282753.062119,
+  "timestamp": 1770287362.459648,
   "results": [
     {
-      "batch_size": 1,
-      "total_prompts": 6,
-      "total_tokens": 600,
-      "total_time": 6.706843137741089,
-      "average_tokens_per_second": 89.46086671144126,
-      "batch_results": [
-        {
-          "batch_idx": 0,
-          "batch_size": 1,
-          "tokens": 100,
-          "time": 1.168200969696045,
-          "tokens_per_second": 85.60170946101772
-        },
-        {
-          "batch_idx": 1,
-          "batch_size": 1,
-          "tokens": 100,
-          "time": 1.1082441806793213,
-          "tokens_per_second": 90.23282210126555
-        },
-        {
-          "batch_idx": 2,
-          "batch_size": 1,
-          "tokens": 100,
-          "time": 1.1060500144958496,
-          "tokens_per_second": 90.41182468188941
-        },
-        {
-          "batch_idx": 3,
-          "batch_size": 1,
-          "tokens": 100,
-          "time": 1.1058340072631836,
-          "tokens_per_second": 90.4294852059116
-        },
-        {
-          "batch_idx": 4,
-          "batch_size": 1,
-          "tokens": 100,
-          "time": 1.1071648597717285,
-          "tokens_per_second": 90.32078566927933
-        },
-        {
-          "batch_idx": 5,
-          "batch_size": 1,
-          "tokens": 100,
-          "time": 1.111349105834961,
-          "tokens_per_second": 89.98072655564842
-        }
-      ]
-    },
-    {
-      "batch_size": 2,
-      "total_prompts": 6,
-      "total_tokens": 600,
-      "total_time": 6.00687313079834,
-      "average_tokens_per_second": 99.88557889190135,
-      "batch_results": [
-        {
-          "batch_idx": 0,
-          "batch_size": 2,
-          "tokens": 200,
-          "time": 2.1591410636901855,
-          "tokens_per_second": 92.62942721221754
-        },
-        {
-          "batch_idx": 1,
-          "batch_size": 2,
-          "tokens": 200,
-          "time": 2.121814012527466,
-          "tokens_per_second": 94.25896842002834
-        },
-        {
-          "batch_idx": 2,
-          "batch_size": 2,
-          "tokens": 200,
-          "time": 1.7259180545806885,
-          "tokens_per_second": 115.88035681600768
-        }
-      ]
-    },
-    {
-      "batch_size": 4,
-      "total_prompts": 6,
-      "total_tokens": 600,
-      "total_time": 4.938816785812378,
-      "average_tokens_per_second": 121.48658798674326,
-      "batch_results": [
-        {
-          "batch_idx": 0,
-          "batch_size": 4,
-          "tokens": 400,
-          "time": 3.211469888687134,
-          "tokens_per_second": 124.55355767434025
-        },
-        {
-          "batch_idx": 1,
-          "batch_size": 2,
-          "tokens": 200,
-          "time": 1.7273468971252441,
-          "tokens_per_second": 115.78450184664828
-        }
-      ]
-    },
-    {
-      "batch_size": 8,
-      "total_prompts": 8,
-      "total_tokens": 800,
-      "total_time": 4.579938173294067,
-      "average_tokens_per_second": 174.6748470677737,
-      "batch_results": [
-        {
-          "batch_idx": 0,
-          "batch_size": 8,
-          "tokens": 800,
-          "time": 4.579938173294067,
-          "tokens_per_second": 174.6748470677737
-        }
-      ]
-    },
-    {
-      "batch_size": 16,
-      "total_prompts": 16,
-      "total_tokens": 1600,
-      "total_time": 7.424804925918579,
-      "average_tokens_per_second": 215.49387707341708,
-      "batch_results": [
-        {
-          "batch_idx": 0,
-          "batch_size": 16,
-          "tokens": 1600,
-          "time": 7.424804925918579,
-          "tokens_per_second": 215.49387707341708
-        }
-      ]
-    },
-    {
-      "batch_size": 32,
-      "total_prompts": 32,
-      "total_tokens": 3200,
-      "total_time": 13.717741966247559,
-      "average_tokens_per_second": 233.27454386250926,
-      "batch_results": [
-        {
-          "batch_idx": 0,
-          "batch_size": 32,
-          "tokens": 3200,
-          "time": 13.717741966247559,
-          "tokens_per_second": 233.27454386250926
-        }
-      ]
-    },
-    {
       "batch_size": 64,
-      "total_prompts": 64,
-      "total_tokens": 6400,
-      "total_time": 15.173651218414307,
-      "average_tokens_per_second": 421.7837821547621,
+      "total_prompts": 6,
+      "total_tokens": 600,
+      "total_time": 3.7219719886779785,
+      "average_tokens_per_second": 161.20486715783056,
       "batch_results": [
         {
           "batch_idx": 0,
-          "batch_size": 64,
-          "tokens": 6400,
-          "time": 15.173651218414307,
-          "tokens_per_second": 421.7837821547621
-        }
-      ]
-    },
-    {
-      "batch_size": 128,
-      "total_prompts": 128,
-      "total_tokens": 12800,
-      "total_time": 39.536853075027466,
-      "average_tokens_per_second": 323.7485789703587,
-      "batch_results": [
-        {
-          "batch_idx": 0,
-          "batch_size": 128,
-          "tokens": 12800,
-          "time": 39.536853075027466,
-          "tokens_per_second": 323.7485789703587
+          "batch_size": 6,
+          "tokens": 600,
+          "time": 3.7219719886779785,
+          "tokens_per_second": 161.20486715783056
         }
       ]
     }

@@ -88,6 +88,18 @@ class Dataset:
         with open(dataset_path, "r") as f:
             self.data = [line.strip() for line in f.readlines() if line.strip()]  # remove empty lines
 
+    def get_n_samples(self, n: int) -> list[str]:
+        # return n samples from dataset, loops over if n > len(data)
+        my_len = len(self.data)
+        requested_n = n
+        if requested_n <= my_len:
+            return self.data[:requested_n]
+        else:
+            replications = (requested_n // my_len) + 1
+            extended_data = self.data * replications
+            return extended_data[:requested_n]
+
+
 async def embeddings_command(config: Config, dataset_path: str, output_path: str):
 
     # Load dataset
@@ -184,13 +196,10 @@ async def benchmark_batch_command(config: Config, model_id: str, dataset_path: s
     for batch_size in batch_sizes:
         print(f"Testing batch size: {batch_size}")
         
-        # Replicate prompts if batch size is larger than dataset
+        # Get prompts using dataset.get_n_samples (replicates if needed)
+        prompts = dataset.get_n_samples(len(base_prompts))
         if batch_size > len(base_prompts):
-            replications = (batch_size // len(base_prompts)) + 1
-            prompts = (base_prompts * replications)[:batch_size]
             print(f"  Note: Dataset replicated to create {batch_size} prompts")
-        else:
-            prompts = base_prompts
         
         # Create batches of prompts
         batches = []
@@ -291,13 +300,10 @@ async def benchmark_command(config: Config, model_id: str, dataset_path: str, ma
     for batch_size in batch_sizes:
         print(f"Testing batch size: {batch_size}")
         
-        # Replicate prompts if batch size is larger than dataset
+        # Get prompts using dataset.get_n_samples (replicates if needed)
+        prompts = dataset.get_n_samples(len(base_prompts))
         if batch_size > len(base_prompts):
-            replications = (batch_size // len(base_prompts)) + 1
-            prompts = (base_prompts * replications)[:batch_size]
             print(f"  Note: Dataset replicated to create {batch_size} prompts")
-        else:
-            prompts = base_prompts
         
         # Create batches of prompts
         batches = []
@@ -394,13 +400,10 @@ async def benchmark_mixed_command(config: Config, model_id: str, dataset_path: s
     total_time = 0.0
     batch_results = []
 
-    # extend dataset to have enough prompts
+    # Get prompts using dataset.get_n_samples (replicates if needed)
+    prompts = dataset.get_n_samples(total_prompts)
     if total_prompts > len(base_prompts):
-        replications = (total_prompts // len(base_prompts)) + 1
-        prompts = (base_prompts * replications)[:total_prompts]
         print(f"  Note: Dataset replicated to create {total_prompts} prompts")
-    else:
-        prompts = base_prompts[:total_prompts]
 
     batches = []
     for i in range(0, len(prompts), completions_per_request):
