@@ -98,6 +98,15 @@ class Dataset:
             replications = (requested_n // my_len) + 1
             extended_data = self.data * replications
             return extended_data[:requested_n]
+    
+    @staticmethod
+    def create_batches(items: list[str], batch_size: int) -> list[list[str]]:
+        """Split a list of items into batches of the specified size"""
+        batches = []
+        for i in range(0, len(items), batch_size):
+            batch = items[i:i + batch_size]
+            batches.append(batch)
+        return batches
 
 
 async def embeddings_command(config: Config, dataset_path: str, output_path: str):
@@ -202,10 +211,7 @@ async def benchmark_batch_command(config: Config, model_id: str, dataset_path: s
             print(f"  Note: Dataset replicated to create {batch_size} prompts")
         
         # Create batches of prompts
-        batches = []
-        for i in range(0, len(prompts), batch_size):
-            batch = prompts[i:i + batch_size]
-            batches.append(batch)
+        batches = Dataset.create_batches(prompts, batch_size)
         
         total_tokens = 0
         total_time = 0.0
@@ -306,10 +312,7 @@ async def benchmark_command(config: Config, model_id: str, dataset_path: str, ma
             print(f"  Note: Dataset replicated to create {batch_size} prompts")
         
         # Create batches of prompts
-        batches = []
-        for i in range(0, len(prompts), batch_size):
-            batch = prompts[i:i + batch_size]
-            batches.append(batch)
+        batches = Dataset.create_batches(prompts, batch_size)
         
         total_tokens = 0
         total_time = 0.0
@@ -405,10 +408,7 @@ async def benchmark_mixed_command(config: Config, model_id: str, dataset_path: s
     if total_prompts > len(base_prompts):
         print(f"  Note: Dataset replicated to create {total_prompts} prompts")
 
-    batches = []
-    for i in range(0, len(prompts), completions_per_request):
-        batch = prompts[i:i + completions_per_request]
-        batches.append(batch)
+    batches = Dataset.create_batches(prompts, completions_per_request)
 
     for batch_idx in range(0, len(batches), requests_at_once):
         current_batches = batches[batch_idx:batch_idx + requests_at_once]

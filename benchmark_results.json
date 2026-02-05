@@ -1,21 +1,21 @@
 {
   "model": "gpt-oss:120b",
   "max_tokens": 100,
-  "timestamp": 1770287362.459648,
+  "timestamp": 1770287427.853009,
   "results": [
     {
       "batch_size": 64,
       "total_prompts": 6,
       "total_tokens": 600,
-      "total_time": 3.7219719886779785,
-      "average_tokens_per_second": 161.20486715783056,
+      "total_time": 3.3341429233551025,
+      "average_tokens_per_second": 179.95629275430946,
       "batch_results": [
         {
           "batch_idx": 0,
           "batch_size": 6,
           "tokens": 600,
-          "time": 3.7219719886779785,
-          "tokens_per_second": 161.20486715783056
+          "time": 3.3341429233551025,
+          "tokens_per_second": 179.95629275430946
         }
       ]
     }
