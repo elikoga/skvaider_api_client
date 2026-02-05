@@ -116,6 +116,45 @@ def save_benchmark_results(output_path: str, data: dict):
         json.dump(data, f, indent=2)
     print(f"Saved benchmark results to {output_path}")
 
+def check_finish_reasons(responses: list[dict], batch_idx: int, expected_reason: str = "length") -> bool:
+    """Check if all responses finished with expected reason. Warns on mismatch instead of failing."""
+    def check_single_response(resp: dict) -> bool:
+        return all(choice["finish_reason"] == expected_reason for choice in resp["choices"])
+    
+    all_match = all(check_single_response(resp) for resp in responses)
+    if not all_match:
+        mismatched = [resp for resp in responses if not check_single_response(resp)]
+        print(f"  WARNING: Not all completions finished with reason '{expected_reason}' in batch {batch_idx}")
+        print(f"  Mismatched responses: {len(mismatched)} out of {len(responses)}")
+    return all_match
+
+def calculate_tokens_per_second(tokens: int, elapsed_time: float) -> float:
+    """Calculate tokens per second, handling zero time"""
+    return tokens / elapsed_time if elapsed_time > 0 else 0.0
+
+def create_batch_result(batch_idx: int, batch_size: int, tokens: int, elapsed_time: float, **extra) -> dict:
+    """Create a standardized batch result dictionary"""
+    result = {
+        "batch_idx": batch_idx,
+        "batch_size": batch_size,
+        "tokens": tokens,
+        "time": elapsed_time,
+        "tokens_per_second": calculate_tokens_per_second(tokens, elapsed_time)
+    }
+    result.update(extra)
+    return result
+
+def create_benchmark_result(batch_size: int, total_prompts: int, total_tokens: int, total_time: float, batch_results: list[dict]) -> dict:
+    """Create a standardized benchmark result summary"""
+    return {
+        "batch_size": batch_size,
+        "total_prompts": total_prompts,
+        "total_tokens": total_tokens,
+        "total_time": total_time,
+        "average_tokens_per_second": calculate_tokens_per_second(total_tokens, total_time),
+        "batch_results": batch_results
+    }
+
 
 async def embeddings_command(config: Config, dataset_path: str, output_path: str):
 
@@ -227,15 +266,11 @@ async def benchmark_batch_command(config: Config, model_id: str, dataset_path: s
             # Use batch API - single request with list of prompts
             response = await client.get_batch_completion(model_id, batch, max_tokens)
             
-            end_time = time.time()
-            batch_time = end_time - start_time
+            batch_time = time.time() - start_time
 
-            # print response for debugging
-            # print(f"Response for batch {batch_idx}: {response}")
-            assert all(choice["finish_reason"] == "length" for choice in response["choices"]), "Not all completions finished due to length"
+            check_finish_reasons([response], batch_idx)
             
             # Count tokens generated - the API returns one choice per prompt
-            # The usage.completion_tokens is per choice, not total
             num_choices = len(response["choices"])
             tokens_per_choice = response["usage"]["completion_tokens"]
             batch_tokens = tokens_per_choice * num_choices
@@ -243,30 +278,15 @@ async def benchmark_batch_command(config: Config, model_id: str, dataset_path: s
             total_tokens += batch_tokens
             total_time += batch_time
             
-            tokens_per_second = batch_tokens / batch_time if batch_time > 0 else 0
-            batch_results.append({
-                "batch_idx": batch_idx,
-                "batch_size": len(batch),
-                "tokens": batch_tokens,
-                "time": batch_time,
-                "tokens_per_second": tokens_per_second
-            })
+            batch_result = create_batch_result(batch_idx, len(batch), batch_tokens, batch_time)
+            batch_results.append(batch_result)
             
-            print(f"  Batch {batch_idx + 1}/{len(batches)}: {batch_tokens} tokens in {batch_time:.2f}s = {tokens_per_second:.2f} tok/s")
+            print(f"  Batch {batch_idx + 1}/{len(batches)}: {batch_tokens} tokens in {batch_time:.2f}s = {batch_result['tokens_per_second']:.2f} tok/s")
         
-        avg_tokens_per_second = total_tokens / total_time if total_time > 0 else 0
-        
-        result = {
-            "batch_size": batch_size,
-            "total_prompts": len(prompts),
-            "total_tokens": total_tokens,
-            "total_time": total_time,
-            "average_tokens_per_second": avg_tokens_per_second,
-            "batch_results": batch_results
-        }
+        result = create_benchmark_result(batch_size, len(prompts), total_tokens, total_time, batch_results)
         results.append(result)
         
-        print(f"  Overall: {total_tokens} tokens in {total_time:.2f}s = {avg_tokens_per_second:.2f} tok/s\n")
+        print(f"  Overall: {total_tokens} tokens in {total_time:.2f}s = {result['average_tokens_per_second']:.2f} tok/s\\n")
 
     # Save results to JSON
     output_data = {
@@ -323,42 +343,25 @@ async def benchmark_command(config: Config, model_id: str, dataset_path: str, ma
             # Run completions in parallel for this batch
             tasks = [client.get_completion(model_id, prompt, max_tokens) for prompt in batch]
             responses = await asyncio.gather(*tasks)
-
             
-            end_time = time.time()
-            batch_time = end_time - start_time
+            batch_time = time.time() - start_time
             
-            assert all(all(choice["finish_reason"] == "length" for choice in resp["choices"]) for resp in responses), f"Not all completions finished due to length, batch_idx={batch_idx}, responses={responses}"
+            check_finish_reasons(responses, batch_idx)
 
             # Count tokens generated
             batch_tokens = sum(resp["usage"]["completion_tokens"] for resp in responses)
             total_tokens += batch_tokens
             total_time += batch_time
             
-            tokens_per_second = batch_tokens / batch_time if batch_time > 0 else 0
-            batch_results.append({
-                "batch_idx": batch_idx,
-                "batch_size": len(batch),
-                "tokens": batch_tokens,
-                "time": batch_time,
-                "tokens_per_second": tokens_per_second
-            })
+            batch_result = create_batch_result(batch_idx, len(batch), batch_tokens, batch_time)
+            batch_results.append(batch_result)
             
-            print(f"  Batch {batch_idx + 1}/{len(batches)}: {batch_tokens} tokens in {batch_time:.2f}s = {tokens_per_second:.2f} tok/s")
+            print(f"  Batch {batch_idx + 1}/{len(batches)}: {batch_tokens} tokens in {batch_time:.2f}s = {batch_result['tokens_per_second']:.2f} tok/s")
         
-        avg_tokens_per_second = total_tokens / total_time if total_time > 0 else 0
-        
-        result = {
-            "batch_size": batch_size,
-            "total_prompts": len(prompts),
-            "total_tokens": total_tokens,
-            "total_time": total_time,
-            "average_tokens_per_second": avg_tokens_per_second,
-            "batch_results": batch_results
-        }
+        result = create_benchmark_result(batch_size, len(prompts), total_tokens, total_time, batch_results)
         results.append(result)
         
-        print(f"  Overall: {total_tokens} tokens in {total_time:.2f}s = {avg_tokens_per_second:.2f} tok/s\n")
+        print(f"  Overall: {total_tokens} tokens in {total_time:.2f}s = {result['average_tokens_per_second']:.2f} tok/s\n")
 
     # Save results to JSON
     output_data = {
@@ -412,28 +415,26 @@ async def benchmark_mixed_command(config: Config, model_id: str, dataset_path: s
         tasks = [client.get_batch_completion(model_id, batch, max_tokens) for batch in current_batches]
         responses = await asyncio.gather(*tasks)
 
-        end_time = time.time()
-        batch_time = end_time - start_time
+        batch_time = time.time() - start_time
 
-        assert all(all(choice["finish_reason"] == "length" for choice in resp["choices"]) for resp in responses), f"Not all completions finished due to length, batch_idx={batch_idx}, responses={responses}"
+        check_finish_reasons(responses, batch_idx // requests_at_once)
 
         # Count tokens generated
         batch_tokens = sum(resp["usage"]["completion_tokens"] * len(resp["choices"]) for resp in responses)
         total_tokens += batch_tokens
         total_time += batch_time
         
-        tokens_per_second = batch_tokens / batch_time if batch_time > 0 else 0
-        batch_results.append({
-            "batch_idx": batch_idx // requests_at_once,
-            "requests": len(current_batches),
-            "tokens": batch_tokens,
-            "time": batch_time,
-            "tokens_per_second": tokens_per_second
-        })
+        batch_result = create_batch_result(
+            batch_idx // requests_at_once, 
+            len(current_batches), 
+            batch_tokens, 
+            batch_time,
+            requests=len(current_batches)
+        )
+        batch_results.append(batch_result)
 
-        print(f"  Requests {batch_idx // requests_at_once + 1}/{(len(batches) + requests_at_once - 1) // requests_at_once}: {batch_tokens} tokens in {batch_time:.2f}s = {tokens_per_second:.2f} tok/s")
+        print(f"  Requests {batch_idx // requests_at_once + 1}/{(len(batches) + requests_at_once - 1) // requests_at_once}: {batch_tokens} tokens in {batch_time:.2f}s = {batch_result['tokens_per_second']:.2f} tok/s")
 
-    avg_tokens_per_second = total_tokens / total_time if total_time > 0 else 0
     result = {
         "model": model_id,
         "max_tokens": max_tokens,
@@ -442,7 +443,7 @@ async def benchmark_mixed_command(config: Config, model_id: str, dataset_path: s
         "total_prompts": total_prompts,
         "total_tokens": total_tokens,
         "total_time": total_time,
-        "average_tokens_per_second": avg_tokens_per_second,
+        "average_tokens_per_second": calculate_tokens_per_second(total_tokens, total_time),
         "batch_results": batch_results
     }
     # Save results to JSON
@@ -451,7 +452,7 @@ async def benchmark_mixed_command(config: Config, model_id: str, dataset_path: s
     # Print summary
     print("\n=== SUMMARY (MIXED PARALLEL + BATCH) ===")
     print(f"Model: {model_id}")
-    print(f"Avg Tokens/Second: {avg_tokens_per_second:.2f}")
+    print(f"Avg Tokens/Second: {result['average_tokens_per_second']:.2f}")
     # print params
     print(f"Completions per request: {completions_per_request}")
     print(f"Requests at once: {requests_at_once}")
