@@ -52,16 +52,28 @@ class ParallelBenchmark(BaseBenchmark):
                 batch_tokens = sum(resp["usage"]["completion_tokens"] for resp in responses)
                 
                 # SANITY CHECK: Verify token counts
-                actual_token_lengths = []
-                actual_text_lengths = []
-                for resp in responses:
-                    # Chat completions use 'message' with 'content', not 'text'
-                    text = resp["choices"][0]["message"]["content"] or ""
-                    actual_text_lengths.append(len(text))
-                    actual_token_lengths.append(len(text.split()))
+                content_token_lengths = []
+                content_char_lengths = []
+                reasoning_token_lengths = []
+                reasoning_char_lengths = []
                 
-                total_actual_words = sum(actual_token_lengths)
-                total_actual_chars = sum(actual_text_lengths)
+                for idx, resp in enumerate(responses):
+                    # Chat completions use 'message' with 'content', not 'text'
+                    message = resp["choices"][0]["message"]
+                    content = message.get("content") or ""
+                    reasoning = message.get("reasoning_content") or ""
+                    
+                    content_char_lengths.append(len(content))
+                    content_token_lengths.append(len(content.split()) if content else 0)
+                    reasoning_char_lengths.append(len(reasoning))
+                    reasoning_token_lengths.append(len(reasoning.split()) if reasoning else 0)
+                
+                total_content_words = sum(content_token_lengths)
+                total_content_chars = sum(content_char_lengths)
+                total_reasoning_words = sum(reasoning_token_lengths)
+                total_reasoning_chars = sum(reasoning_char_lengths)
+                total_all_words = total_content_words + total_reasoning_words
+                total_all_chars = total_content_chars + total_reasoning_chars
                 
                 # Store first batch sample for each batch size for inspection
                 if batch_idx == 0:
@@ -69,14 +81,21 @@ class ParallelBenchmark(BaseBenchmark):
                         "batch_size": batch_size,
                         "num_prompts": len(batch),
                         "reported_total_tokens": batch_tokens,
-                        "actual_word_count": total_actual_words,
-                        "actual_char_count": total_actual_chars,
+                        "content_word_count": total_content_words,
+                        "content_char_count": total_content_chars,
+                        "reasoning_word_count": total_reasoning_words,
+                        "reasoning_char_count": total_reasoning_chars,
+                        "total_word_count": total_all_words,
+                        "total_char_count": total_all_chars,
                         "sample_outputs": [
                             {
                                 "prompt": batch[i] if i < len(batch) else None,
-                                "text": (responses[i]["choices"][0]["message"]["content"] or "")[:200] + ("..." if len(responses[i]["choices"][0]["message"]["content"] or "") > 200 else ""),
-                                "full_length": len(responses[i]["choices"][0]["message"]["content"] or ""),
-                                "word_count": len((responses[i]["choices"][0]["message"]["content"] or "").split()),
+                                "content": (responses[i]["choices"][0]["message"].get("content") or "")[:200] + ("..." if len(responses[i]["choices"][0]["message"].get("content") or "") > 200 else ""),
+                                "reasoning": (responses[i]["choices"][0]["message"].get("reasoning_content") or "")[:200] + ("..." if len(responses[i]["choices"][0]["message"].get("reasoning_content") or "") > 200 else ""),
+                                "content_length": len(responses[i]["choices"][0]["message"].get("content") or ""),
+                                "reasoning_length": len(responses[i]["choices"][0]["message"].get("reasoning_content") or ""),
+                                "content_word_count": len((responses[i]["choices"][0]["message"].get("content") or "").split()),
+                                "reasoning_word_count": len((responses[i]["choices"][0]["message"].get("reasoning_content") or "").split()),
                                 "reported_tokens": responses[i]["usage"]["completion_tokens"],
                             }
                             for i in range(min(3, len(responses)))  # First 3 samples
@@ -88,11 +107,21 @@ class ParallelBenchmark(BaseBenchmark):
                 print(
                     f"  Batch {batch_idx + 1}/{len(batches)}: {batch_tokens} tokens in {batch_time:.2f}s = {batch_result['tokens_per_second']:.2f} tok/s"
                 )
-                print(f"    SANITY CHECK: {len(responses)} responses, ~{total_actual_words} words, {total_actual_chars} chars generated")
                 
-                # Warn if token count seems suspicious
-                if total_actual_chars < batch_tokens * 0.5:  # Less than 0.5 chars per token is suspicious
-                    print(f"    ⚠️  WARNING: Server reports {batch_tokens} tokens but only {total_actual_chars} chars generated!")
+                # Build sanity check message
+                if total_reasoning_words > 0:
+                    print(f"    SANITY CHECK: {len(responses)} responses")
+                    print(f"      Content: ~{total_content_words} words, {total_content_chars} chars")
+                    print(f"      Reasoning: ~{total_reasoning_words} words, {total_reasoning_chars} chars")
+                    print(f"      Total: ~{total_all_words} words, {total_all_chars} chars")
+                else:
+                    print(f"    SANITY CHECK: {len(responses)} responses, ~{total_content_words} words, {total_content_chars} chars")
+                
+                # Warn if total generated content doesn't match token count reasonably
+                # Average token is ~4 chars, so check if we're within reasonable range
+                expected_min_chars = batch_tokens * 2  # At least 2 chars per token
+                if total_all_chars < expected_min_chars:
+                    print(f"    ⚠️  WARNING: Server reports {batch_tokens} tokens but only {total_all_chars} total chars generated!")
 
             result = create_benchmark_result(
                 batch_size, len(prompts), tracker.total_tokens, tracker.total_time, tracker.batch_results
@@ -125,10 +154,21 @@ class ParallelBenchmark(BaseBenchmark):
             # Add sanity check summary
             if "sample_outputs" in data:
                 print("\n=== SANITY CHECK SUMMARY ===")
-                print("Batch Size | Reported Tokens | Actual Words | Actual Chars | Ratio (Reported/Words)")
-                print("-" * 95)
-                for sample in data["sample_outputs"]:
-                    ratio = sample["reported_total_tokens"] / sample["actual_word_count"] if sample["actual_word_count"] > 0 else 0
-                    print(f"{sample['batch_size']:10} | {sample['reported_total_tokens']:15} | {sample['actual_word_count']:12} | {sample['actual_char_count']:12} | {ratio:>6.2f}x")
+                # Check if any samples have reasoning
+                has_reasoning = any(sample.get("reasoning_word_count", 0) > 0 for sample in data["sample_outputs"])
+                
+                if has_reasoning:
+                    print("Batch Size | Reported Tokens | Content Words | Reasoning Words | Total Words | Total Chars")
+                    print("-" * 100)
+                    for sample in data["sample_outputs"]:
+                        print(f"{sample['batch_size']:10} | {sample['reported_total_tokens']:15} | {sample.get('content_word_count', 0):13} | {sample.get('reasoning_word_count', 0):15} | {sample.get('total_word_count', 0):11} | {sample.get('total_char_count', 0):11}")
+                else:
+                    print("Batch Size | Reported Tokens | Actual Words | Actual Chars | Ratio (Reported/Words)")
+                    print("-" * 95)
+                    for sample in data["sample_outputs"]:
+                        words = sample.get("total_word_count") or sample.get("actual_word_count", 0)
+                        chars = sample.get("total_char_count") or sample.get("actual_char_count", 0)
+                        ratio = sample["reported_total_tokens"] / words if words > 0 else 0
+                        print(f"{sample['batch_size']:10} | {sample['reported_total_tokens']:15} | {words:12} | {chars:12} | {ratio:>6.2f}x")
 
         self.save_results(output_data, "SUMMARY", summary_formatter)
