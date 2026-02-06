@@ -15,11 +15,33 @@ You can specify a different config file with `--config path/to/config.toml`.
 
 ## Benchmark Modes
 
-### 1. Parallel Benchmark (`benchmark`)
+### 0. All Benchmarks (`benchmark-all`)
+
+Runs all four benchmark modes with comprehensive settings. Includes a `--quick` flag for faster smoke testing.
+
+**Example Usage:**
+
+```bash
+# Run all benchmarks with comprehensive settings
+uv run skvaider-api-client benchmark-all --model openai/gpt-oss-120b
+
+# Quick mode (fewer iterations, good for smoke testing)
+uv run skvaider-api-client benchmark-all --model openai/gpt-oss-120b --quick
+```
+
+**What it tests:**
+- `/chat/completions` parallel: 1, 4, 16, 32, 64, 128 batch sizes
+- `/completions` batch API: 1, 4, 16, 32, 64, 128 batch sizes
+- `/completions` mixed: (2,4,8 completions) × (4,8,16,32 requests)
+- `/chat/completions` sustained: 4, 16, 32, 64, 128 requests in flight
+
+### 1. Parallel Benchmark (`benchmark`) - `/chat/completions`
 
 Tests throughput by sending multiple parallel chat completion requests in batches.
 
 Sends requests using `/v1/chat/completions` endpoint in parallel and does asyncio.gather to wait for all responses. Measures total tokens generated, total time taken, and calculates tokens/second for each batch size.
+
+**Default batch sizes:** 1, 4, 16, 32, 64, 128
 
 **Example Usage:**
 
@@ -28,7 +50,7 @@ Sends requests using `/v1/chat/completions` endpoint in parallel and does asynci
 uv run skvaider-api-client benchmark --model openai/gpt-oss-120b --batch-sizes 4
 
 # Test multiple batch sizes
-uv run skvaider-api-client benchmark --model openai/gpt-oss-120b --batch-sizes 1,2,4,8,16
+uv run skvaider-api-client benchmark --model openai/gpt-oss-120b --batch-sizes 1,4,16,32,64,128
 
 # Customize max tokens per completion
 uv run skvaider-api-client benchmark --model openai/gpt-oss-120b --batch-sizes 4,8 --max-tokens 200
@@ -36,8 +58,8 @@ uv run skvaider-api-client benchmark --model openai/gpt-oss-120b --batch-sizes 4
 
 **Output:**
 ```
-Benchmarking model (PARALLEL): openai/gpt-oss-120b
-Testing batch sizes: [1, 2, 4, 8]
+Benchmarking model (/chat/completions PARALLEL): openai/gpt-oss-120b
+Testing batch sizes: [1, 4, 16, 32, 64, 128]
 
 Testing batch size: 4
   Batch 1/4: 400 tokens in 2.73s = 146.69 tok/s
@@ -56,9 +78,11 @@ Batch Size | Avg Tokens/Second
          8 |           215.33
 ```
 
-### 2. Batch API Benchmark (`benchmark-batch`)
+### 2. Batch API Benchmark (`benchmark-batch`) - `/completions`
 
 Tests the `/completions` batch API endpoint which processes multiple prompts in a single request.
+
+**Default batch sizes:** 1, 4, 16, 32, 64, 128
 
 **Example Usage:**
 
@@ -67,16 +91,16 @@ Tests the `/completions` batch API endpoint which processes multiple prompts in 
 uv run skvaider-api-client benchmark-batch --model openai/gpt-oss-120b --batch-sizes 4
 
 # Test multiple batch sizes
-uv run skvaider-api-client benchmark-batch --model openai/gpt-oss-120b --batch-sizes 1,2,4,8,16
+uv run skvaider-api-client benchmark-batch --model openai/gpt-oss-120b --batch-sizes 1,4,16,32,64,128
 
-# Adjust number of batches to test
+# Custom batch sizes
 uv run skvaider-api-client benchmark-batch --model openai/gpt-oss-120b --batch-sizes 8 --num-batches 10
 ```
 
 **Output:**
 ```
-Benchmarking model (BATCH API): openai/gpt-oss-120b
-Testing batch sizes: [4, 8]
+Benchmarking model (/completions BATCH API): openai/gpt-oss-120b
+Testing batch sizes: [4, 16, 32, 64]
 
 Testing batch size: 4
   Batch 1/4: 400 tokens in 3.22s = 124.21 tok/s
@@ -89,9 +113,11 @@ Batch Size | Avg Tokens/Second
          8 |           193.35
 ```
 
-### 3. Mixed Benchmark (`benchmark-mixed`)
+### 3. Mixed Benchmark (`benchmark-mixed`) - `/completions`
 
 Combines parallel requests with batch API - multiple parallel requests, each containing a batch of prompts. Tests all combinations of parameters.
+
+**Default settings:** 2,4,8 completions per request × 4,8,16,32 parallel requests
 
 **Example Usage:**
 
@@ -111,8 +137,8 @@ uv run skvaider-api-client benchmark-mixed --model openai/gpt-oss-120b \
 
 **Output:**
 ```
-Benchmarking model (MIXED): openai/gpt-oss-120b
-Testing 6 combinations
+Benchmarking model (/completions MIXED): openai/gpt-oss-120b
+Testing 12 combinations
 
 === SUMMARY ===
 Completions/Req | Requests/Once | Effective Batch | Avg Tokens/Second
@@ -131,9 +157,11 @@ Best configuration:
   Tokens/second: 215.81
 ```
 
-### 4. Sustained Benchmark (`benchmark-sustained`)
+### 4. Sustained Benchmark (`benchmark-sustained`) - `/chat/completions`
 
 Measures steady-state throughput by maintaining a constant number of requests in flight. Includes warmup and cooldown phases for accurate measurement.
+
+**Default requests in flight:** 4, 16, 32, 64, 128
 
 **Example Usage:**
 
@@ -144,7 +172,7 @@ uv run skvaider-api-client benchmark-sustained --model openai/gpt-oss-120b \
 
 # Test multiple concurrency levels
 uv run skvaider-api-client benchmark-sustained --model openai/gpt-oss-120b \
-  --requests-in-flight 2,4,8,16
+  --requests-in-flight 4,16,32,64,128
 
 # Custom measurement periods
 uv run skvaider-api-client benchmark-sustained --model openai/gpt-oss-120b \
@@ -163,10 +191,10 @@ uv run skvaider-api-client benchmark-sustained --model openai/gpt-oss-120b \
 
 **Output:**
 ```
-Benchmarking model (SUSTAINED): openai/gpt-oss-120b
-Warmup requests: 5
-Measurement requests: 20
-Cooldown requests: 5
+Benchmarking model (/chat/completions SUSTAINED): openai/gpt-oss-120b
+Warmup requests: 10
+Measurement requests: 50
+Cooldown requests: 10
 
 Testing with 4 requests in flight:
   Warmup complete, entering steady state measurement...

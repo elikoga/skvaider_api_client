@@ -8,17 +8,17 @@ from .utils import BenchmarkTracker, get_prompts_and_batches, check_finish_reaso
 
 class MixedBenchmark(BaseBenchmark):
     NAME = "benchmark-mixed"
-    HELP = "Benchmark completion speed using mixed parallel and batch API approach"
+    HELP = "Benchmark /completions with mixed parallel requests + batch API"
 
     @classmethod
     def add_arguments(cls, parser: argparse.ArgumentParser):
         super().add_arguments(parser)
         parser.add_argument("--max-tokens", type=int, default=100, help="Max tokens per completion")
         parser.add_argument(
-            "--completions-per-request", type=str, default="2", help="Comma-separated list of completions per request to test"
+            "--completions-per-request", type=str, default="2,4,8", help="Comma-separated list of completions per request to test"
         )
         parser.add_argument(
-            "--requests-at-once", type=str, default="4", help="Comma-separated list of parallel requests to test"
+            "--requests-at-once", type=str, default="4,8,16,32", help="Comma-separated list of parallel requests to test"
         )
 
     async def run(self):
@@ -29,7 +29,7 @@ class MixedBenchmark(BaseBenchmark):
         # Generate all combinations
         combinations = list(product(completions_per_request_list, requests_at_once_list))
         
-        print(f"Benchmarking model (MIXED): {self.args.model}")
+        print(f"Benchmarking model (/completions MIXED): {self.args.model}")
         print(f"Max tokens per completion: {self.args.max_tokens}")
         print(f"Testing {len(combinations)} combinations:")
         print(f"  Completions per request: {completions_per_request_list}")

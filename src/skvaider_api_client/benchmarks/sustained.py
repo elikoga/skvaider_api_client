@@ -8,7 +8,7 @@ from .utils import calculate_tokens_per_second
 
 class SustainedBenchmark(BaseBenchmark):
     NAME = "benchmark-sustained"
-    HELP = "Benchmark sustained throughput with constant requests in flight"
+    HELP = "Benchmark /chat/completions sustained throughput (constant requests in flight)"
 
     @classmethod
     def add_arguments(cls, parser: argparse.ArgumentParser):
@@ -17,7 +17,7 @@ class SustainedBenchmark(BaseBenchmark):
         parser.add_argument(
             "--requests-in-flight",
             type=str,
-            default="4",
+            default="4,16,32,64,128",
             help="Comma-separated list of concurrent requests to maintain",
         )
         parser.add_argument(
@@ -42,7 +42,7 @@ class SustainedBenchmark(BaseBenchmark):
     async def run(self):
         requests_in_flight_list = [int(x.strip()) for x in self.args.requests_in_flight.split(",")]
         
-        print(f"Benchmarking model (SUSTAINED): {self.args.model}")
+        print(f"Benchmarking model (/chat/completions SUSTAINED): {self.args.model}")
         print(f"Max tokens per completion: {self.args.max_tokens}")
         print(f"Warmup requests: {self.args.warmup_requests}")
         print(f"Measurement requests: {self.args.measurement_requests}")

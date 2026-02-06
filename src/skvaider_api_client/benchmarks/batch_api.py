@@ -7,7 +7,7 @@ from .utils import BenchmarkTracker, get_prompts_and_batches, create_benchmark_r
 
 class BatchApiBenchmark(BaseBenchmark):
     NAME = "benchmark-batch"
-    HELP = "Benchmark completion speed using /completions batch API"
+    HELP = "Benchmark /completions batch API (multiple completions per request)"
 
     @classmethod
     def add_arguments(cls, parser: argparse.ArgumentParser):
@@ -16,7 +16,7 @@ class BatchApiBenchmark(BaseBenchmark):
         parser.add_argument(
             "--batch-sizes",
             type=str,
-            default="1,2,4,6",
+            default="1,4,16,32,64,128",
             help="Comma-separated list of batch sizes to test",
         )
 
@@ -26,7 +26,7 @@ class BatchApiBenchmark(BaseBenchmark):
         # Test 4 full batches per batch size
         num_batches_to_test = 4
 
-        print(f"Benchmarking model (BATCH API): {self.args.model}")
+        print(f"Benchmarking model (/completions BATCH API): {self.args.model}")
         print(f"Base dataset size: {dataset_len} prompts")
         print(f"Testing {num_batches_to_test} batches per batch size")
         print(f"Max tokens per completion: {self.args.max_tokens}")
