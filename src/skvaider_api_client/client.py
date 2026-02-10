@@ -13,7 +13,7 @@ class APIClient:
     def __init__(self, config: Config):
         self.token = config.skvaider_token
         self.url = config.skvaider_url
-        self.timeout = httpx.Timeout(60.0, read=60.0)
+        self.timeout = httpx.Timeout(300.0, read=300.0)
         self.headers = {"Authorization": f"Bearer {self.token}"}
         self.client = httpx.AsyncClient(timeout=self.timeout, headers=self.headers)
 
